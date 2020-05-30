@@ -179,7 +179,7 @@ class SourceMapExtractor(object):
                 # remove webpack:// from paths
                 # and do some checks on it
                 write_path = self._get_sanitised_file_path(source)
-                if write_path is not None:
+                if write_path is not None and re.search("webpack:///\./src/.*vue", path) is None:
                     os.makedirs(os.path.dirname(write_path), mode=0o755, exist_ok=True)
                     with open(write_path, 'w') as f:
                         print("Writing %s..." % os.path.basename(write_path))
