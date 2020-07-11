@@ -104,14 +104,17 @@ class SourceMapExtractor(object):
 
         # TODO: scan to see if this is a sourcemap instead of assuming HTML
         print("Detecting sourcemaps in HTML at %s" % uri)
-        script_strainer = SoupStrainer("script", src=True)
+        script_strainer = SoupStrainer(["script", "link"])
         try:
-            soup = BeautifulSoup(data, "html.parser", parse_only=script_strainer)
+            soup = BeautifulSoup(data, "html.parser", parse_only=script_strainer).select('script[src], link[href$=".js"][rel="prefetch"]')
         except:
             raise SourceMapExtractorError("Could not parse HTML at URI %s" % uri)
 
         for script in soup:
-            source = script['src']
+            if script.name == 'script':
+                source = script['src']
+            elif script.name == 'link':
+                source = script['href']
             parsed_uri = urlparse(source)
             next_target_uri = ""
             if parsed_uri.scheme != '':
@@ -121,6 +124,7 @@ class SourceMapExtractor(object):
                 built_uri = current_uri.scheme + "://" + current_uri.netloc + source
                 next_target_uri = built_uri
 
+            print("Check map on %s" % next_target_uri)
             js_data = self._get_remote_data(next_target_uri)
             # get last line of file
             last_line = js_data.split("\n")[-1].strip()
@@ -179,7 +183,7 @@ class SourceMapExtractor(object):
                 # remove webpack:// from paths
                 # and do some checks on it
                 write_path = self._get_sanitised_file_path(source)
-                if write_path is not None and re.search("webpack:///\./src/.*vue", path) is None:
+                if write_path is not None and re.search("webpack:///\./.*vue", path) is None:
                     os.makedirs(os.path.dirname(write_path), mode=0o755, exist_ok=True)
                     with open(write_path, 'w') as f:
                         print("Writing %s..." % os.path.basename(write_path))
